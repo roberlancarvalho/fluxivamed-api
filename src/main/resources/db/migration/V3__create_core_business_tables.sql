@@ -1,26 +1,23 @@
 -- V3__create_core_business_tables.sql
 
--- Tabela para armazenar os hospitais
-CREATE TABLE hospitais (
+CREATE TABLE IF NOT EXISTS hospitais (
     id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
     cnpj VARCHAR(18) NOT NULL UNIQUE,
     endereco TEXT
 );
 
--- Tabela para o perfil profissional dos médicos, ligada ao usuário de autenticação
-CREATE TABLE medicos (
+CREATE TABLE IF NOT EXISTS medicos (
     user_id BIGINT PRIMARY KEY,
     crm VARCHAR(20) NOT NULL UNIQUE,
     especialidade VARCHAR(100) NOT NULL,
     CONSTRAINT fk_medicos_users FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Tabela central para os plantões
-CREATE TABLE plantoes (
+CREATE TABLE IF NOT EXISTS plantoes (
     id BIGSERIAL PRIMARY KEY,
     hospital_id BIGINT NOT NULL,
-    medico_id BIGINT, -- Pode ser nulo se o plantão estiver disponível
+    medico_id BIGINT,
     inicio TIMESTAMP NOT NULL,
     fim TIMESTAMP NOT NULL,
     valor DOUBLE PRECISION NOT NULL,

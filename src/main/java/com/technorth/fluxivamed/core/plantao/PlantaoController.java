@@ -25,14 +25,12 @@ public class PlantaoController {
         this.plantaoService = plantaoService;
     }
 
-    // --- ENDPOINTS NOVOS ---
-
     /**
      * Feature 1: Endpoint de busca com filtros e paginação.
      * Exemplo de chamada: GET /api/v1/plantoes/disponiveis?hospitalId=1&data=2025-10-21&page=0&size=10
      */
     @GetMapping("/disponiveis")
-    @PreAuthorize("hasRole('MEDICO')") // Apenas usuários com o perfil MEDICO podem acessar.
+    @PreAuthorize("hasRole('MEDICO')")
     public ResponseEntity<Page<PlantaoResponseDTO>> buscarDisponiveis(
             @RequestParam(required = false) Long hospitalId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
@@ -43,11 +41,10 @@ public class PlantaoController {
     /**
      * Feature 2: Endpoint para um médico se candidatar a um plantão.
      */
-// Dentro de PlantaoController.java
 
     @PostMapping("/{plantaoId}/candidatar-se")
     @PreAuthorize("hasRole('MEDICO')")
-    public ResponseEntity<Void> candidatarSeAoPlantao(
+    public ResponseEntity<PlantaoResponseDTO> candidatarSeAoPlantao(
             @PathVariable Long plantaoId,
             Authentication authentication) {
 
@@ -57,8 +54,8 @@ public class PlantaoController {
 
         String medicoEmail = authentication.getName();
 
-        plantaoService.candidatar(plantaoId, medicoEmail);
-        return ResponseEntity.ok().build();
+        PlantaoResponseDTO dto = plantaoService.candidatar(plantaoId, medicoEmail);
+        return ResponseEntity.ok(dto);
     }
 
     /**
@@ -68,7 +65,20 @@ public class PlantaoController {
     @PreAuthorize("hasRole('MEDICO')")
     public ResponseEntity<List<PlantaoResponseDTO>> getMeusPlantoes(
             @AuthenticationPrincipal UserDetails userDetails) {
+        List<PlantaoResponseDTO> meusPlantoes = plantaoService.findByMedico(userDetails.getUsername());
+        return ResponseEntity.ok(meusPlantoes);
+    }
 
-        return ResponseEntity.ok(plantaoService.findByMedico(userDetails.getUsername()));
+    /**
+     * Feature 4: Endpoint para o admin aprovar médido ao plantão.
+     */
+    @PostMapping("/{plantaoId}/aprovar/{medicoId}")
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
+    public ResponseEntity<PlantaoResponseDTO> aprovarCandidato(
+            @PathVariable Long plantaoId,
+            @PathVariable Long medicoId) {
+
+        PlantaoResponseDTO dto = plantaoService.aprovarCandidatura(plantaoId, medicoId) ;
+        return ResponseEntity.ok(dto);
     }
 }

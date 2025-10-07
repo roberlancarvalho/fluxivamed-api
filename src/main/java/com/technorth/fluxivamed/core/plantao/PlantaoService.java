@@ -32,49 +32,59 @@ public class PlantaoService {
 
     @Transactional(readOnly = true)
     public Page<PlantaoResponseDTO> findAvailable(Long hospitalId, LocalDate data, Pageable pageable) {
-        Page<Plantao> plantoesPage;
-        final StatusPlantao status = StatusPlantao.DISPONIVEL;
-
         LocalDateTime dataInicio = (data != null) ? data.atStartOfDay() : null;
         LocalDateTime dataFim = (data != null) ? data.plusDays(1).atStartOfDay() : null;
 
-        boolean hasHospital = hospitalId != null;
-        boolean hasData = data != null;
-
-        // --- LÓGICA DE DECISÃO INTELIGENTE ---
-        if (hasHospital && hasData) {
-            plantoesPage = plantaoRepository.findByStatusAndHospitalIdAndInicioBetween(status, hospitalId, dataInicio, dataFim, pageable);
-        } else if (hasHospital) {
-            plantoesPage = plantaoRepository.findByStatusAndHospitalId(status, hospitalId, pageable);
-        } else if (hasData) {
-            plantoesPage = plantaoRepository.findByStatusAndInicioBetween(status, dataInicio, dataFim, pageable);
-        } else {
-            // Se não houver filtros, chama o método mais simples
-            plantoesPage = plantaoRepository.findByStatus(status, pageable);
-        }
+        Page<Plantao> plantoesPage = plantaoRepository.findAvailableWithFilters(
+                StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim, pageable);
 
         return plantoesPage.map(this::convertToDto);
     }
 
     @Transactional
-    public void candidatar(Long plantaoId, String medicoEmail) {
+    public PlantaoResponseDTO candidatar(Long plantaoId, String medicoEmail) {
         User user = userRepository.findByEmail(medicoEmail)
-                .orElseThrow(() -> new RuntimeException("Usuário com email " + medicoEmail + " não encontrado."));
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + medicoEmail));
 
         Medico medico = medicoRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("Perfil de médico não encontrado para o usuário: " + medicoEmail));
 
-        Plantao plantao = plantaoRepository.findById(plantaoId)
-                .orElseThrow(() -> new RuntimeException("Plantão não encontrado com o ID: " + plantaoId));
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId)
+                .orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
 
         if (plantao.getStatus() != StatusPlantao.DISPONIVEL) {
-            throw new IllegalStateException("Este plantão não está mais disponível para candidatura.");
+            throw new IllegalStateException("Só é possível se candidatar a plantões com status DISPONIVEL");
         }
 
-        plantao.setMedico(medico);
+        plantao.getCandidatos().add(medico);
         plantao.setStatus(StatusPlantao.AGUARDANDO_APROVACAO);
 
-        plantaoRepository.save(plantao);
+        Plantao plantaoSalvo = plantaoRepository.save(plantao);
+        return convertToDto(plantaoSalvo);
+    }
+
+    @Transactional
+    public PlantaoResponseDTO aprovarCandidatura(Long plantaoId, Long medicoId) {
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId)
+                .orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
+
+        Medico medicoAprovado = medicoRepository.findById(medicoId)
+                .orElseThrow(() -> new RuntimeException("Médico não encontrado"));
+
+        if (plantao.getStatus() != StatusPlantao.AGUARDANDO_APROVACAO) {
+            throw new IllegalStateException("Plantão não está aguardando aprovação.");
+        }
+
+        if (!plantao.getCandidatos().contains(medicoAprovado)) {
+            throw new IllegalStateException("Este médico não é um candidato para este plantão.");
+        }
+
+        plantao.setMedico(medicoAprovado);
+        plantao.setStatus(StatusPlantao.PREENCHIDO);
+        plantao.getCandidatos().clear();
+
+        Plantao plantaoSalvo = plantaoRepository.save(plantao);
+        return convertToDto(plantaoSalvo);
     }
 
     @Transactional(readOnly = true)

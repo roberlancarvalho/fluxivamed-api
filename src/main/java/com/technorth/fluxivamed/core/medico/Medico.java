@@ -1,10 +1,18 @@
 package com.technorth.fluxivamed.core.medico;
 
+import com.technorth.fluxivamed.core.plantao.Plantao;
 import com.technorth.fluxivamed.domain.User;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+import java.util.HashSet;
+import java.util.Set;
+
+@Getter
+@Setter
+@EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "medicos")
 public class Medico {
@@ -24,4 +32,6 @@ public class Medico {
     @Column(nullable = false, length = 100)
     private String especialidade;
 
+    @ManyToMany(mappedBy = "candidatos")
+    private Set<Plantao> candidaturas = new HashSet<>();
 }
