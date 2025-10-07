@@ -1,0 +1,74 @@
+package com.technorth.fluxivamed.core.plantao;
+
+import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/plantoes")
+public class PlantaoController {
+
+    private final PlantaoService plantaoService;
+
+    public PlantaoController(PlantaoService plantaoService) {
+        this.plantaoService = plantaoService;
+    }
+
+    // --- ENDPOINTS NOVOS ---
+
+    /**
+     * Feature 1: Endpoint de busca com filtros e paginação.
+     * Exemplo de chamada: GET /api/v1/plantoes/disponiveis?hospitalId=1&data=2025-10-21&page=0&size=10
+     */
+    @GetMapping("/disponiveis")
+    @PreAuthorize("hasRole('MEDICO')") // Apenas usuários com o perfil MEDICO podem acessar.
+    public ResponseEntity<Page<PlantaoResponseDTO>> buscarDisponiveis(
+            @RequestParam(required = false) Long hospitalId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
+            Pageable pageable) {
+        return ResponseEntity.ok(plantaoService.findAvailable(hospitalId, data, pageable));
+    }
+
+    /**
+     * Feature 2: Endpoint para um médico se candidatar a um plantão.
+     */
+// Dentro de PlantaoController.java
+
+    @PostMapping("/{plantaoId}/candidatar-se")
+    @PreAuthorize("hasRole('MEDICO')")
+    public ResponseEntity<Void> candidatarSeAoPlantao(
+            @PathVariable Long plantaoId,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String medicoEmail = authentication.getName();
+
+        plantaoService.candidatar(plantaoId, medicoEmail);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Feature 3: Endpoint para o médico ver sua própria agenda de plantões.
+     */
+    @GetMapping("/meus-plantoes")
+    @PreAuthorize("hasRole('MEDICO')")
+    public ResponseEntity<List<PlantaoResponseDTO>> getMeusPlantoes(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        return ResponseEntity.ok(plantaoService.findByMedico(userDetails.getUsername()));
+    }
+}

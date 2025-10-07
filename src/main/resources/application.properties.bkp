@@ -1,0 +1,21 @@
+spring.application.name=Fluxivamed
+
+# === Datasource (DEV rodando pelo IntelliJ) ===
+spring.datasource.url=jdbc:postgresql://localhost:5432/fluxivamed
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# === JPA / Hibernate ===
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=false
+
+# === Flyway ===
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+
+# === JWT secret ===
+# usa a env SECURITY_JWT_SECRET se existir; se não, usa o valor após os dois pontos (apenas DEV)
+security.jwt.secret=${SECURITY_JWT_SECRET:F2WnythSO73qDCvHKFpljVzvGNFQdD8kNnXYcuzDox1C67y0D644bq6bPreHwe1z2HGY7WmNYC112EyCOVx2+A==}
