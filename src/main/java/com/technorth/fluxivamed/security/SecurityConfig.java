@@ -23,7 +23,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-feat(plantao): Implementa fluxo de candidatura de médico a plantão
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
