@@ -63,9 +63,9 @@ public class PlantaoController {
      */
     @GetMapping("/meus-plantoes")
     @PreAuthorize("hasRole('MEDICO')")
-    public ResponseEntity<List<PlantaoResponseDTO>> getMeusPlantoes(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        List<PlantaoResponseDTO> meusPlantoes = plantaoService.findByMedico(userDetails.getUsername());
+    public ResponseEntity<List<PlantaoResponseDTO>> getMeusPlantoes(Authentication authentication) {
+        String medicoEmail = authentication.getName();
+        List<PlantaoResponseDTO> meusPlantoes = plantaoService.findByMedico(medicoEmail);
         return ResponseEntity.ok(meusPlantoes);
     }
 
