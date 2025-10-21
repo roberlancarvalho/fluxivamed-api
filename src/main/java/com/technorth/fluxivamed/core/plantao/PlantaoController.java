@@ -30,7 +30,7 @@ public class PlantaoController {
      * Exemplo de chamada: GET /api/v1/plantoes/disponiveis?hospitalId=1&data=2025-10-21&page=0&size=10
      */
     @GetMapping("/disponiveis")
-    @PreAuthorize("hasRole('MEDICO')")
+    @PreAuthorize("hasAnyRole('MEDICO', 'ADMIN', 'HOSPITAL_ADMIN', 'ESCALISTA')")
     public ResponseEntity<Page<PlantaoResponseDTO>> buscarDisponiveis(
             @RequestParam(required = false) Long hospitalId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
