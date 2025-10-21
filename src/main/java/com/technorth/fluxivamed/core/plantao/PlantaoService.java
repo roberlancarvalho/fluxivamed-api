@@ -1,15 +1,20 @@
 package com.technorth.fluxivamed.core.plantao;
 
+import com.technorth.fluxivamed.core.hospital.Hospital;
+import com.technorth.fluxivamed.core.hospital.HospitalRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
+import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
 import com.technorth.fluxivamed.domain.User;
 import com.technorth.fluxivamed.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,13 +26,36 @@ public class PlantaoService {
     private final PlantaoRepository plantaoRepository;
     private final MedicoRepository medicoRepository;
     private final UserRepository userRepository;
+    private final HospitalRepository hospitalRepository;
 
     public PlantaoService(PlantaoRepository plantaoRepository,
                           MedicoRepository medicoRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository, HospitalRepository hospitalRepository) {
         this.plantaoRepository = plantaoRepository;
         this.medicoRepository = medicoRepository;
         this.userRepository = userRepository;
+        this.hospitalRepository = hospitalRepository;
+    }
+
+    @Transactional
+    public PlantaoResponseDTO criarPlantao(PlantaoRequestDTO requestDTO) {
+        Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId())
+                .orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
+
+        if (requestDTO.inicio().isAfter(requestDTO.fim())) {
+            throw new IllegalArgumentException("A data de início não pode ser depois da data de fim.");
+        }
+
+        Plantao novoPlantao = new Plantao();
+        novoPlantao.setHospital(hospital);
+        novoPlantao.setEspecialidade(requestDTO.especialidade());
+        novoPlantao.setInicio(requestDTO.inicio());
+        novoPlantao.setFim(requestDTO.fim());
+        novoPlantao.setValor(requestDTO.valor());
+        novoPlantao.setStatus(StatusPlantao.DISPONIVEL);
+
+        Plantao plantaoSalvo = plantaoRepository.save(novoPlantao);
+        return convertToDto(plantaoSalvo);
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +133,7 @@ public class PlantaoService {
                 plantao.getHospital().getNome(),
                 plantao.getMedico() != null ? plantao.getMedico().getId() : null,
                 nomeMedico,
+                plantao.getEspecialidade(),
                 plantao.getInicio(),
                 plantao.getFim(),
                 plantao.getValor(),

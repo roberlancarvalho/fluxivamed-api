@@ -6,7 +6,10 @@ import jakarta.persistence.*;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,11 +33,22 @@ public class Plantao {
     @JoinColumn(name = "medico_id")
     private Medico medico;
 
+    @Column(nullable = false, length = 100)
+    private String especialidade;
+
     @Column(nullable = false)
     private LocalDateTime inicio;
 
     @Column(nullable = false)
     private LocalDateTime fim;
+
+    @CreationTimestamp
+    @Column(name = "criado_em")
+    private Instant criadoEm;
+
+    @UpdateTimestamp
+    @Column(name = "atualizado_em")
+    private Instant atualizadoEm;
 
     @Column(nullable = false)
     private Double valor;

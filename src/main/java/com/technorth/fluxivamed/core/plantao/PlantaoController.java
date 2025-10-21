@@ -1,6 +1,8 @@
 package com.technorth.fluxivamed.core.plantao;
 
+import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -8,8 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -80,5 +80,15 @@ public class PlantaoController {
 
         PlantaoResponseDTO dto = plantaoService.aprovarCandidatura(plantaoId, medicoId) ;
         return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * Feature 5: Endpoint para criar um novo plantão.
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ESCALISTA')")
+    public ResponseEntity<PlantaoResponseDTO> criarNovoPlantao(@Valid @RequestBody PlantaoRequestDTO requestDTO) {
+        PlantaoResponseDTO plantaoCriado = plantaoService.criarPlantao(requestDTO);
+        return new ResponseEntity<>(plantaoCriado, HttpStatus.CREATED);
     }
 }

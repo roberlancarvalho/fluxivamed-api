@@ -9,6 +9,7 @@ public record PlantaoResponseDTO(
         String nomeHospital,
         Long medicoId,
         String nomeMedico,
+        String especialidade,
         LocalDateTime inicio,
         LocalDateTime fim,
         Double valor,
