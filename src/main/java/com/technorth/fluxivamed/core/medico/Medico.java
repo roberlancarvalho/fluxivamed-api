@@ -7,7 +7,9 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -34,4 +36,7 @@ public class Medico {
 
     @ManyToMany(mappedBy = "candidatos")
     private Set<Plantao> candidaturas = new HashSet<>();
+
+    @OneToMany(mappedBy = "medico", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Disponibilidade> disponibilidades = new ArrayList<>();
 }

@@ -14,7 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,9 +27,7 @@ public class PlantaoService {
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
 
-    public PlantaoService(PlantaoRepository plantaoRepository,
-                          MedicoRepository medicoRepository,
-                          UserRepository userRepository, HospitalRepository hospitalRepository) {
+    public PlantaoService(PlantaoRepository plantaoRepository, MedicoRepository medicoRepository, UserRepository userRepository, HospitalRepository hospitalRepository) {
         this.plantaoRepository = plantaoRepository;
         this.medicoRepository = medicoRepository;
         this.userRepository = userRepository;
@@ -39,8 +36,7 @@ public class PlantaoService {
 
     @Transactional
     public PlantaoResponseDTO criarPlantao(PlantaoRequestDTO requestDTO) {
-        Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId())
-                .orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
+        Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId()).orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
 
         if (requestDTO.inicio().isAfter(requestDTO.fim())) {
             throw new IllegalArgumentException("A data de início não pode ser depois da data de fim.");
@@ -63,22 +59,18 @@ public class PlantaoService {
         LocalDateTime dataInicio = (data != null) ? data.atStartOfDay() : null;
         LocalDateTime dataFim = (data != null) ? data.plusDays(1).atStartOfDay() : null;
 
-        Page<Plantao> plantoesPage = plantaoRepository.findAvailableWithFilters(
-                StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim, pageable);
+        Page<Plantao> plantoesPage = plantaoRepository.findAvailableWithFilters(StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim, pageable);
 
         return plantoesPage.map(this::convertToDto);
     }
 
     @Transactional
     public PlantaoResponseDTO candidatar(Long plantaoId, String medicoEmail) {
-        User user = userRepository.findByEmail(medicoEmail)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + medicoEmail));
+        User user = userRepository.findByEmail(medicoEmail).orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + medicoEmail));
 
-        Medico medico = medicoRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Perfil de médico não encontrado para o usuário: " + medicoEmail));
+        Medico medico = medicoRepository.findById(user.getId()).orElseThrow(() -> new RuntimeException("Perfil de médico não encontrado para o usuário: " + medicoEmail));
 
-        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId)
-                .orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId).orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
 
         if (plantao.getStatus() != StatusPlantao.DISPONIVEL) {
             throw new IllegalStateException("Só é possível se candidatar a plantões com status DISPONIVEL");
@@ -93,11 +85,9 @@ public class PlantaoService {
 
     @Transactional
     public PlantaoResponseDTO aprovarCandidatura(Long plantaoId, Long medicoId) {
-        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId)
-                .orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(plantaoId).orElseThrow(() -> new RuntimeException("Plantão não encontrado"));
 
-        Medico medicoAprovado = medicoRepository.findById(medicoId)
-                .orElseThrow(() -> new RuntimeException("Médico não encontrado"));
+        Medico medicoAprovado = medicoRepository.findById(medicoId).orElseThrow(() -> new RuntimeException("Médico não encontrado"));
 
         if (plantao.getStatus() != StatusPlantao.AGUARDANDO_APROVACAO) {
             throw new IllegalStateException("Plantão não está aguardando aprovação.");
@@ -118,26 +108,12 @@ public class PlantaoService {
     @Transactional(readOnly = true)
     public List<PlantaoResponseDTO> findByMedico(String medicoEmail) {
         List<Plantao> plantoes = plantaoRepository.findByMedico_User_Email(medicoEmail);
-        return plantoes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        return plantoes.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     private PlantaoResponseDTO convertToDto(Plantao plantao) {
-        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null)
-                ? plantao.getMedico().getUser().getFullName() : null;
+        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null) ? plantao.getMedico().getUser().getFullName() : null;
 
-        return new PlantaoResponseDTO(
-                plantao.getId(),
-                plantao.getHospital().getId(),
-                plantao.getHospital().getNome(),
-                plantao.getMedico() != null ? plantao.getMedico().getId() : null,
-                nomeMedico,
-                plantao.getEspecialidade(),
-                plantao.getInicio(),
-                plantao.getFim(),
-                plantao.getValor(),
-                plantao.getStatus()
-        );
+        return new PlantaoResponseDTO(plantao.getId(), plantao.getHospital().getId(), plantao.getHospital().getNome(), plantao.getMedico() != null ? plantao.getMedico().getId() : null, nomeMedico, plantao.getEspecialidade(), plantao.getInicio(), plantao.getFim(), plantao.getValor(), plantao.getStatus());
     }
 }
