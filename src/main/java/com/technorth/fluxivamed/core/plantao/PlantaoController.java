@@ -2,13 +2,10 @@ package com.technorth.fluxivamed.core.plantao;
 
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
-import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,70 +22,61 @@ public class PlantaoController {
         this.plantaoService = plantaoService;
     }
 
-    /**
-     * Feature 1: Endpoint de busca com filtros e paginação.
-     * Exemplo de chamada: GET /api/v1/plantoes/disponiveis?hospitalId=1&data=2025-10-21&page=0&size=10
-     */
+    @PostMapping
+    public ResponseEntity<PlantaoResponseDTO> criarPlantao(@RequestBody PlantaoRequestDTO requestDTO) {
+        PlantaoResponseDTO novoPlantao = plantaoService.criarPlantao(requestDTO);
+        return ResponseEntity.status(201).body(novoPlantao);
+    }
+
     @GetMapping("/disponiveis")
-    @PreAuthorize("hasAnyRole('MEDICO', 'ADMIN', 'HOSPITAL_ADMIN', 'ESCALISTA')")
-    public ResponseEntity<Page<PlantaoResponseDTO>> buscarDisponiveis(
-            @RequestParam(required = false) Long hospitalId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
-            Pageable pageable) {
-        return ResponseEntity.ok(plantaoService.findAvailable(hospitalId, data, pageable));
+    public ResponseEntity<Page<PlantaoResponseDTO>> buscarDisponiveis(@RequestParam(required = false) Long hospitalId, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data, Pageable pageable) {
+        Page<PlantaoResponseDTO> plantoes = plantaoService.findAvailable(hospitalId, data, pageable);
+        return ResponseEntity.ok(plantoes);
     }
 
-    /**
-     * Feature 2: Endpoint para um médico se candidatar a um plantão.
-     */
+    @PostMapping("/{plantaoId}/candidatar")
+    public ResponseEntity<PlantaoResponseDTO> candidatarPlantao(@PathVariable Long plantaoId, Authentication authentication) {
 
-    @PostMapping("/{plantaoId}/candidatar-se")
-    @PreAuthorize("hasRole('MEDICO')")
-    public ResponseEntity<PlantaoResponseDTO> candidatarSeAoPlantao(
-            @PathVariable Long plantaoId,
-            Authentication authentication) {
-
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401).build();
         }
-
         String medicoEmail = authentication.getName();
 
-        PlantaoResponseDTO dto = plantaoService.candidatar(plantaoId, medicoEmail);
-        return ResponseEntity.ok(dto);
+        PlantaoResponseDTO plantaoAtualizado = plantaoService.candidatar(plantaoId, medicoEmail);
+        return ResponseEntity.ok(plantaoAtualizado);
     }
 
-    /**
-     * Feature 3: Endpoint para o médico ver sua própria agenda de plantões.
-     */
-    @GetMapping("/meus-plantoes")
-    @PreAuthorize("hasRole('MEDICO')")
-    public ResponseEntity<List<PlantaoResponseDTO>> getMeusPlantoes(Authentication authentication) {
-        String medicoEmail = authentication.getName();
-        List<PlantaoResponseDTO> meusPlantoes = plantaoService.findByMedico(medicoEmail);
+    @PutMapping("/{plantaoId}/aprovar/{medicoId}")
+    public ResponseEntity<PlantaoResponseDTO> aprovarCandidatura(@PathVariable Long plantaoId, @PathVariable Long medicoId) {
+        PlantaoResponseDTO plantaoAtualizado = plantaoService.aprovarCandidatura(plantaoId, medicoId);
+        return ResponseEntity.ok(plantaoAtualizado);
+    }
+
+    @GetMapping("/meus")
+    public ResponseEntity<List<PlantaoResponseDTO>> buscarMeusPlantoes(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String email = authentication.getName();
+        List<PlantaoResponseDTO> meusPlantoes = plantaoService.findByMedico(email);
         return ResponseEntity.ok(meusPlantoes);
     }
 
-    /**
-     * Feature 4: Endpoint para o admin aprovar médido ao plantão.
-     */
-    @PostMapping("/{plantaoId}/aprovar/{medicoId}")
-    @PreAuthorize("hasRole('HOSPITAL_ADMIN')")
-    public ResponseEntity<PlantaoResponseDTO> aprovarCandidato(
-            @PathVariable Long plantaoId,
-            @PathVariable Long medicoId) {
-
-        PlantaoResponseDTO dto = plantaoService.aprovarCandidatura(plantaoId, medicoId) ;
-        return ResponseEntity.ok(dto);
+    @GetMapping("/{id}")
+    public ResponseEntity<PlantaoResponseDTO> getPlantaoById(@PathVariable Long id) {
+        PlantaoResponseDTO plantao = plantaoService.getPlantaoDtoById(id);
+        return ResponseEntity.ok(plantao);
     }
 
-    /**
-     * Feature 5: Endpoint para criar um novo plantão.
-     */
-    @PostMapping
-    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ESCALISTA')")
-    public ResponseEntity<PlantaoResponseDTO> criarNovoPlantao(@Valid @RequestBody PlantaoRequestDTO requestDTO) {
-        PlantaoResponseDTO plantaoCriado = plantaoService.criarPlantao(requestDTO);
-        return new ResponseEntity<>(plantaoCriado, HttpStatus.CREATED);
+    @PutMapping("/{id}")
+    public ResponseEntity<PlantaoResponseDTO> atualizarPlantao(@PathVariable Long id, @RequestBody PlantaoRequestDTO plantaoRequestDTO) {
+        PlantaoResponseDTO plantaoAtualizado = plantaoService.atualizarPlantao(id, plantaoRequestDTO);
+        return ResponseEntity.ok(plantaoAtualizado);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluirPlantao(@PathVariable Long id) {
+        plantaoService.excluirPlantao(id);
+        return ResponseEntity.noContent().build();
     }
 }

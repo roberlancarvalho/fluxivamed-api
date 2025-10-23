@@ -3,22 +3,24 @@ package com.technorth.fluxivamed.core.plantao;
 import com.technorth.fluxivamed.core.hospital.Hospital;
 import com.technorth.fluxivamed.core.medico.Medico;
 import jakarta.persistence.*;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.Instant;
+import java.math.BigDecimal; // <<< Importar BigDecimal
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-@Getter
-@Setter
-@EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "plantoes")
+@Getter
+@Setter
+@NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class Plantao {
 
     @Id
@@ -33,29 +35,29 @@ public class Plantao {
     @JoinColumn(name = "medico_id")
     private Medico medico;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false)
     private String especialidade;
 
-    @Column(nullable = false)
+    @Column(name = "data_inicio", nullable = false)
     private LocalDateTime inicio;
 
-    @Column(nullable = false)
+    @Column(name = "data_fim", nullable = false)
     private LocalDateTime fim;
 
-    @CreationTimestamp
-    @Column(name = "criado_em")
-    private Instant criadoEm;
-
-    @UpdateTimestamp
-    @Column(name = "atualizado_em")
-    private Instant atualizadoEm;
-
-    @Column(nullable = false)
-    private Double valor;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal valor;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusPlantao status;
+
+    @CreatedDate
+    @Column(name = "criado_em", nullable = false, updatable = false)
+    private LocalDateTime criadoEm;
+
+    @LastModifiedDate
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

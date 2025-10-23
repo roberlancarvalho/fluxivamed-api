@@ -4,6 +4,7 @@ import com.technorth.fluxivamed.core.hospital.Hospital;
 import com.technorth.fluxivamed.core.hospital.HospitalRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
+import com.technorth.fluxivamed.core.medico.dto.MedicoResponseDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
 import com.technorth.fluxivamed.domain.User;
@@ -11,8 +12,11 @@ import com.technorth.fluxivamed.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.jpa.domain.Specification; // <-- Adicionar esta importação
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,7 +63,9 @@ public class PlantaoService {
         LocalDateTime dataInicio = (data != null) ? data.atStartOfDay() : null;
         LocalDateTime dataFim = (data != null) ? data.plusDays(1).atStartOfDay() : null;
 
-        Page<Plantao> plantoesPage = plantaoRepository.findAvailableWithFilters(StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim, pageable);
+        Specification<Plantao> spec = PlantaoSpecifications.withFilters(StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim);
+
+        Page<Plantao> plantoesPage = plantaoRepository.findAll(spec, pageable);
 
         return plantoesPage.map(this::convertToDto);
     }
@@ -111,9 +117,74 @@ public class PlantaoService {
         return plantoes.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
-    private PlantaoResponseDTO convertToDto(Plantao plantao) {
-        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null) ? plantao.getMedico().getUser().getFullName() : null;
+    @Transactional
+    public PlantaoResponseDTO atualizarPlantao(Long plantaoId, PlantaoRequestDTO plantaoRequestDTO) {
+        Plantao plantao = plantaoRepository.findById(plantaoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
 
-        return new PlantaoResponseDTO(plantao.getId(), plantao.getHospital().getId(), plantao.getHospital().getNome(), plantao.getMedico() != null ? plantao.getMedico().getId() : null, nomeMedico, plantao.getEspecialidade(), plantao.getInicio(), plantao.getFim(), plantao.getValor(), plantao.getStatus());
+        plantao.setHospital(hospitalRepository.findById(plantaoRequestDTO.hospitalId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital não encontrado.")));
+        plantao.setEspecialidade(plantaoRequestDTO.especialidade());
+        plantao.setInicio(plantaoRequestDTO.inicio());
+        plantao.setFim(plantaoRequestDTO.fim());
+        plantao.setValor(plantaoRequestDTO.valor());
+
+        Plantao plantaoAtualizado = plantaoRepository.save(plantao);
+        return convertToDto(plantaoAtualizado);
+    }
+
+    @Transactional
+    public void excluirPlantao(Long plantaoId) {
+        Plantao plantao = plantaoRepository.findById(plantaoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
+
+        if (plantao.getStatus() == StatusPlantao.AGUARDANDO_APROVACAO || plantao.getStatus() == StatusPlantao.REALIZADO) {
+            throw new IllegalStateException("Não é possível excluir um plantão em andamento ou concluído.");
+        }
+        if (plantao.getMedico() != null) {
+            throw new IllegalStateException("Não é possível excluir um plantão com médico já alocado.");
+        }
+
+        System.out.println("Excluindo plantão ID: " + plantaoId);
+        plantaoRepository.delete(plantao);
+    }
+
+    @Transactional(readOnly = true)
+    public PlantaoResponseDTO getPlantaoDtoById(Long id) {
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + id));
+        return convertToDto(plantao);
+    }
+
+    private MedicoResponseDTO convertMedicoToDto(Medico medico) {
+        if (medico == null) {
+            return null;
+        }
+        return new MedicoResponseDTO(medico.getId(), medico.getCrm(), medico.getUser());
+    }
+
+    private PlantaoResponseDTO convertToDto(Plantao plantao) {
+        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null)
+                ? plantao.getMedico().getUser().getFullName() : null;
+
+        List<MedicoResponseDTO> candidatosDTO = plantao.getCandidatos() != null ?
+                plantao.getCandidatos().stream()
+                        .map(this::convertMedicoToDto)
+                        .collect(Collectors.toList()) :
+                List.of();
+
+        return new PlantaoResponseDTO(
+                plantao.getId(),
+                plantao.getHospital().getId(),
+                plantao.getHospital().getNome(),
+                plantao.getMedico() != null ? plantao.getMedico().getId() : null,
+                nomeMedico,
+                plantao.getEspecialidade(),
+                plantao.getInicio(),
+                plantao.getFim(),
+                plantao.getValor(),
+                plantao.getStatus(),
+                candidatosDTO
+        );
     }
 }

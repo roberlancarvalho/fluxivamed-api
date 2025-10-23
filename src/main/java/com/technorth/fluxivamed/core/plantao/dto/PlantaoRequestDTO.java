@@ -1,9 +1,10 @@
 package com.technorth.fluxivamed.core.plantao.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record PlantaoRequestDTO(
@@ -22,6 +23,6 @@ public record PlantaoRequestDTO(
         LocalDateTime fim,
 
         @NotNull
-        @Positive(message = "O valor deve ser positivo.")
-        Double valor
+        @DecimalMin(value = "0.01", message = "O valor deve ser positivo.")
+        BigDecimal valor
 ) {}

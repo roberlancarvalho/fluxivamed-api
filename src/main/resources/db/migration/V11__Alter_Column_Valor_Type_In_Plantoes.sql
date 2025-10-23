@@ -1,0 +1,2 @@
+ALTER TABLE plantoes
+ALTER COLUMN valor TYPE NUMERIC(10, 2);
