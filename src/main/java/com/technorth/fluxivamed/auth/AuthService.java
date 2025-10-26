@@ -1,5 +1,7 @@
 package com.technorth.fluxivamed.auth;
 
+import com.technorth.fluxivamed.core.especialidade.Especialidade; // Adicionar este import
+import com.technorth.fluxivamed.core.especialidade.EspecialidadeRepository; // Adicionar este import
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
 import com.technorth.fluxivamed.domain.Role;
@@ -30,15 +32,18 @@ public class AuthService {
     private final UserRepository users;
     private final RoleRepository roles;
     private final MedicoRepository medicos;
+    private final EspecialidadeRepository especialidades;
 
     public AuthService(AuthenticationManager am, JwtEncoder enc, PasswordEncoder pe,
-                       UserRepository ur, RoleRepository rr, MedicoRepository mr) {
+                       UserRepository ur, RoleRepository rr, MedicoRepository mr,
+                       EspecialidadeRepository er) {
         this.authManager = am;
         this.encoder = enc;
         this.passwordEncoder = pe;
         this.users = ur;
         this.roles = rr;
         this.medicos = mr;
+        this.especialidades = er;
     }
 
     @Transactional
@@ -67,7 +72,14 @@ public class AuthService {
             Medico medicoProfile = new Medico();
             medicoProfile.setUser(savedUser);
             medicoProfile.setCrm(req.crm());
-            medicoProfile.setEspecialidade(req.especialidade());
+
+            Especialidade especialidadeObj = especialidades.findByNome(req.especialidade())
+                    .orElseGet(() -> {
+                        Especialidade novaEspecialidade = new Especialidade(req.especialidade());
+                        return especialidades.save(novaEspecialidade);
+                    });
+
+            medicoProfile.setEspecialidade(especialidadeObj);
             medicos.save(medicoProfile);
         }
     }

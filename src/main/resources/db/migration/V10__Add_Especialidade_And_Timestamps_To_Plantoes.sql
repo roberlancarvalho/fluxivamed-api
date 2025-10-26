@@ -1,29 +1,35 @@
--- Adiciona a coluna 'especialidade' que também é usada na entidade
+-- Adiciona a coluna especialidade_id à tabela plantoes (se ainda não existir)
 ALTER TABLE plantoes
-ADD COLUMN IF NOT EXISTS especialidade VARCHAR(255) NOT NULL DEFAULT 'Clinico Geral';
+ADD COLUMN IF NOT EXISTS especialidade_id BIGINT;
 
--- Adiciona as colunas de data/hora que estão faltando
--- (Seu erro mencionou 'data_fim', mas 'criado_em' e 'atualizado_em' também estão na entidade)
-
--- NOTA: Sua entidade Plantao.java mapeia 'fim' para 'data_fim', e 'inicio' para 'data_inicio'
--- Vamos garantir que ambas existam.
+-- Adiciona a chave estrangeira para especialidade_id
+-- (Garante que a tabela especialidades exista antes, o que a V9 faz)
 ALTER TABLE plantoes
-ADD COLUMN IF NOT EXISTS data_inicio TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
--- ^^ ATENÇÃO: Verifique se a coluna 'data_inicio' já não existe. Se sim, remova esta linha.
+ADD CONSTRAINT fk_plantoes_especialidade FOREIGN KEY (especialidade_id) REFERENCES especialidades(id);
+
+-- ATUALIZAÇÃO CRÍTICA:
+-- Preenche os plantões existentes (criados em V4) com uma especialidade padrão
+-- ANTES de adicionar a restrição NOT NULL.
+-- Vamos usar a 'Clínica Médica' (que o V4 insere em 'especialidades')
+UPDATE plantoes
+SET especialidade_id = (SELECT id FROM especialidades WHERE nome = 'Clínica Médica' LIMIT 1)
+WHERE especialidade_id IS NULL;
+
+-- Agora podemos tornar a coluna obrigatória (NOT NULL)
+ALTER TABLE plantoes ALTER COLUMN especialidade_id SET NOT NULL;
+
+-- Adiciona as colunas de controle de data/hora
+ALTER TABLE plantoes
+ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 ALTER TABLE plantoes
-ADD COLUMN IF NOT EXISTS data_fim TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
--- ^^ Esta é a que o erro reportou como faltando.
+ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP WITH TIME ZONE;
 
-ALTER TABLE plantoes
-ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
+-- Atualiza colunas de timestamp para registros existentes
+UPDATE plantoes SET atualizado_em = NOW() WHERE atualizado_em IS NULL;
 
-ALTER TABLE plantoes
-ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP WITHOUT TIME ZONE;
+-- Torna atualizado_em NOT NULL
+ALTER TABLE plantoes ALTER COLUMN atualizado_em SET NOT NULL;
 
--- Modifica o default da 'especialidade' após adicioná-la (opcional)
-ALTER TABLE plantoes ALTER COLUMN especialidade DROP DEFAULT;
--- Modifica os defaults das datas (opcional)
-ALTER TABLE plantoes ALTER COLUMN data_inicio DROP DEFAULT;
-ALTER TABLE plantoes ALTER COLUMN data_fim DROP DEFAULT;
+-- Remove a default para que o JPA possa gerenciar
 ALTER TABLE plantoes ALTER COLUMN criado_em DROP DEFAULT;

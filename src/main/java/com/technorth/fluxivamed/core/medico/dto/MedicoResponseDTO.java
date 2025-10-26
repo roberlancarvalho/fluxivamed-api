@@ -5,5 +5,8 @@ import com.technorth.fluxivamed.domain.User;
 public record MedicoResponseDTO(
         Long id,
         String crm,
-        User user
+        String nomeCompleto,
+        String email,
+        String telefone,
+        String especialidadeNome
 ) {}

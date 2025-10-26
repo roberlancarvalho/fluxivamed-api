@@ -1,5 +1,4 @@
 -- V3__create_core_business_tables.sql
-
 CREATE TABLE IF NOT EXISTS hospitais (
     id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
@@ -10,8 +9,11 @@ CREATE TABLE IF NOT EXISTS hospitais (
 CREATE TABLE IF NOT EXISTS medicos (
     user_id BIGINT PRIMARY KEY,
     crm VARCHAR(20) NOT NULL UNIQUE,
-    especialidade VARCHAR(100) NOT NULL,
+    -- especialidade_id será adicionada em uma migration futura,
+    -- mas por enquanto, precisa estar aqui para o V4.
+    especialidade_id BIGINT, -- Temporariamente permitindo NULL para V4 rodar antes de V8/V9
     CONSTRAINT fk_medicos_users FOREIGN KEY (user_id) REFERENCES users(id)
+    -- CONSTRAINT fk_medicos_especialidade FOREIGN KEY (especialidade_id) REFERENCES especialidades(id) -- Descomentar depois que especialidades for criada
 );
 
 CREATE TABLE IF NOT EXISTS plantoes (

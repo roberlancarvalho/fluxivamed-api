@@ -5,5 +5,6 @@ public enum StatusPlantao {
     AGUARDANDO_APROVACAO,
     PREENCHIDO,
     REALIZADO,
-    CANCELADO
+    CANCELADO,
+    CONCLUIDO_NAO_PAGO
 }

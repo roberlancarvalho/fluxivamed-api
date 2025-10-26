@@ -1,5 +1,7 @@
 package com.technorth.fluxivamed.core.medico;
 
+import com.technorth.fluxivamed.core.candidatura.Candidatura;
+import com.technorth.fluxivamed.core.especialidade.Especialidade;
 import com.technorth.fluxivamed.core.plantao.Plantao;
 import com.technorth.fluxivamed.domain.User;
 import jakarta.persistence.*;
@@ -31,11 +33,12 @@ public class Medico {
     @Column(unique = true, nullable = false, length = 20)
     private String crm;
 
-    @Column(nullable = false, length = 100)
-    private String especialidade;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "especialidade_id", nullable = false)
+    private Especialidade especialidade;
 
-    @ManyToMany(mappedBy = "candidatos")
-    private Set<Plantao> candidaturas = new HashSet<>();
+    @OneToMany(mappedBy = "medico", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Candidatura> candidaturas = new HashSet<>();
 
     @OneToMany(mappedBy = "medico", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Disponibilidade> disponibilidades = new ArrayList<>();

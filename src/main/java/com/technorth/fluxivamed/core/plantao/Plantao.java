@@ -1,8 +1,11 @@
 package com.technorth.fluxivamed.core.plantao;
 
+import com.technorth.fluxivamed.core.candidatura.Candidatura;
+import com.technorth.fluxivamed.core.especialidade.Especialidade;
 import com.technorth.fluxivamed.core.hospital.Hospital;
 import com.technorth.fluxivamed.core.medico.Medico;
 import jakarta.persistence.*;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,16 +13,17 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal; // <<< Importar BigDecimal
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "plantoes")
 @Getter
 @Setter
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
+@Entity
+@Table(name = "plantoes")
 @EntityListeners(AuditingEntityListener.class)
 public class Plantao {
 
@@ -35,14 +39,15 @@ public class Plantao {
     @JoinColumn(name = "medico_id")
     private Medico medico;
 
-    @Column(nullable = false)
-    private String especialidade;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "especialidade_id", nullable = false)
+    private Especialidade especialidade;
 
     @Column(name = "data_inicio", nullable = false)
-    private LocalDateTime inicio;
+    private LocalDateTime dataInicio;
 
-    @Column(name = "data_fim", nullable = false)
-    private LocalDateTime fim;
+    @Column(name = "data_fim")
+    private LocalDateTime dataFim;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal valor;
@@ -56,14 +61,19 @@ public class Plantao {
     private LocalDateTime criadoEm;
 
     @LastModifiedDate
-    @Column(name = "atualizado_em")
+    @Column(name = "atualizado_em", nullable = false)
     private LocalDateTime atualizadoEm;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "plantao_candidatos",
-            joinColumns = @JoinColumn(name = "plantao_id"),
-            inverseJoinColumns = @JoinColumn(name = "medico_id")
-    )
-    private Set<Medico> candidatos = new HashSet<>();
+    @OneToMany(mappedBy = "plantao", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Candidatura> candidatos = new HashSet<>();
+
+    public void adicionarCandidato(Candidatura candidatura) {
+        this.candidatos.add(candidatura);
+        candidatura.setPlantao(this);
+    }
+
+    public void removerCandidato(Candidatura candidatura) {
+        this.candidatos.remove(candidatura);
+        candidatura.setPlantao(null);
+    }
 }

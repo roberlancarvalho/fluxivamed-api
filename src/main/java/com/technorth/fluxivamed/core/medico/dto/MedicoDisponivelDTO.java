@@ -4,6 +4,6 @@ public record MedicoDisponivelDTO(
         Long id,
         String nomeCompleto,
         String crm,
-        String especialidade
+        com.technorth.fluxivamed.core.especialidade.Especialidade especialidade
 ) {
 }

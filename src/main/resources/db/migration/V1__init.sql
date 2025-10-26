@@ -1,3 +1,4 @@
+-- V1__init.sql
 -- Criar tabela de usuários
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
@@ -5,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(150),
     enabled BOOLEAN DEFAULT TRUE,
-    tenant_id VARCHAR(50),  -- multi-clínica/hospital
+    tenant_id VARCHAR(50),
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
@@ -13,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Criar tabela de roles (perfis de acesso)
 CREATE TABLE IF NOT EXISTS roles (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE, -- ex.: ADMIN, MEDICO, ESCALISTA
+    name VARCHAR(50) NOT NULL UNIQUE,
     description VARCHAR(150)
 );
 
@@ -31,8 +32,9 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);
 
 -- Inserir roles iniciais
-INSERT INTO roles (name, description) VALUES 
+INSERT INTO roles (name, description) VALUES
     ('ADMIN', 'Administrador do sistema'),
     ('MEDICO', 'Profissional médico'),
-    ('ESCALISTA', 'Responsável pela gestão de escalas')
+    ('ESCALISTA', 'Responsável pela gestão de escalas'),
+    ('HOSPITAL_ADMIN', 'Administrador do Hospital')
 ON CONFLICT (name) DO NOTHING;

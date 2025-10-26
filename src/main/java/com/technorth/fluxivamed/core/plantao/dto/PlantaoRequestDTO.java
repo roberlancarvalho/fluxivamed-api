@@ -1,5 +1,6 @@
 package com.technorth.fluxivamed.core.plantao.dto;
 
+import com.technorth.fluxivamed.core.especialidade.Especialidade;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
@@ -12,7 +13,7 @@ public record PlantaoRequestDTO(
         Long hospitalId,
 
         @NotNull
-        String especialidade,
+        Especialidade especialidade,
 
         @NotNull
         @Future(message = "A data de início deve ser no futuro.")

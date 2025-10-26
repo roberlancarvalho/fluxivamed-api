@@ -7,28 +7,22 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional; // Importe Optional para findByEmail
 
 @Repository
 public interface MedicoRepository extends JpaRepository<Medico, Long> {
 
-    /**
-     * Encontra médicos disponíveis que não possuem plantões conflitantes com o intervalo de tempo fornecido.
-     * Um conflito ocorre se um plantão existente começa antes do fim do novo plantão E
-     * termina depois do início do novo plantão.
-     *
-     * @param inicio O início do intervalo de disponibilidade desejado.
-     * @param fim O fim do intervalo de disponibilidade desejado.
-     * @param especialidade A especialidade desejada (opcional).
-     * @return Uma lista de médicos disponíveis.
-     */
     @Query("SELECT m FROM Medico m WHERE " +
             "(:especialidade IS NULL OR m.especialidade = :especialidade) AND " +
             "m.id NOT IN (" +
             "  SELECT p.medico.id FROM Plantao p WHERE p.medico IS NOT NULL AND " +
-            "  (p.inicio < :fim AND p.fim > :inicio)" +
+            "  (p.dataInicio < :fim AND p.dataFim > :inicio)" +
             ")")
     List<Medico> findMedicosDisponiveis(
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim,
             @Param("especialidade") String especialidade);
+
+    Optional<Medico> findByUserEmail(String email);
+    Optional<Medico> findByUserId(Long userId);
 }
