@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/especialidades")
@@ -21,11 +20,11 @@ public class EspecialidadeController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HOSPITAL_ADMIN', 'ESCALISTA', 'MEDICO')")
-    public ResponseEntity<List<String>> listarNomesEspecialidades() {
+    // ALTERAÇÃO 1: Mudar nome do método e tipo de retorno para List<Especialidade>
+    public ResponseEntity<List<Especialidade>> listarEspecialidades() {
+        // ALTERAÇÃO 2: Buscar a lista completa de objetos
         List<Especialidade> especialidades = especialidadeService.listarTodas();
-        List<String> nomes = especialidades.stream()
-                .map(Especialidade::getNome)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(nomes);
+        // ALTERAÇÃO 3: Retornar diretamente a lista de objetos
+        return ResponseEntity.ok(especialidades);
     }
 }

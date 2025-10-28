@@ -13,10 +13,12 @@ public record PlantaoResponseDTO(
         String nomeHospital,
         Long medicoId,
         String nomeMedico,
-        com.technorth.fluxivamed.core.especialidade.Especialidade especialidade,
+        Long especialidadeId,
+        String especialidadeNome,
         LocalDateTime inicio,
         LocalDateTime fim,
         BigDecimal valor,
         StatusPlantao status,
         List<MedicoResponseDTO> candidatos
-) {}
+) {
+}

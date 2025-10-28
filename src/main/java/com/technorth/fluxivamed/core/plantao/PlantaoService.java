@@ -1,6 +1,9 @@
 package com.technorth.fluxivamed.core.plantao;
 
+import com.technorth.fluxivamed.core.candidatura.Candidatura;
+import com.technorth.fluxivamed.core.candidatura.CandidaturaStatus;
 import com.technorth.fluxivamed.core.especialidade.Especialidade;
+import com.technorth.fluxivamed.core.especialidade.EspecialidadeRepository;
 import com.technorth.fluxivamed.core.hospital.Hospital;
 import com.technorth.fluxivamed.core.hospital.HospitalRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
@@ -10,25 +13,20 @@ import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
 import com.technorth.fluxivamed.domain.User;
 import com.technorth.fluxivamed.repository.UserRepository;
-import com.technorth.fluxivamed.core.candidatura.Candidatura;
-import com.technorth.fluxivamed.core.candidatura.CandidaturaStatus;
-// Não precisamos mais do import para Especialidade aqui, pois Medico.especialidade é String
-// import com.technorth.fluxivamed.core.especialidade.Especialidade;
-
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class PlantaoService {
@@ -37,12 +35,18 @@ public class PlantaoService {
     private final MedicoRepository medicoRepository;
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
+    private final EspecialidadeRepository especialidadeRepository;
 
-    public PlantaoService(PlantaoRepository plantaoRepository, MedicoRepository medicoRepository, UserRepository userRepository, HospitalRepository hospitalRepository) {
+    public PlantaoService(PlantaoRepository plantaoRepository,
+                          MedicoRepository medicoRepository,
+                          UserRepository userRepository,
+                          HospitalRepository hospitalRepository,
+                          EspecialidadeRepository especialidadeRepository) {
         this.plantaoRepository = plantaoRepository;
         this.medicoRepository = medicoRepository;
         this.userRepository = userRepository;
         this.hospitalRepository = hospitalRepository;
+        this.especialidadeRepository = especialidadeRepository;
     }
 
     @Transactional
@@ -50,13 +54,15 @@ public class PlantaoService {
         Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId())
                 .orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
 
+        Especialidade especialidadeGerenciada = processarEspecialidade(requestDTO.especialidade());
+
         if (requestDTO.inicio().isAfter(requestDTO.fim())) {
             throw new IllegalArgumentException("A data de início não pode ser depois da data de fim.");
         }
 
         Plantao novoPlantao = new Plantao();
         novoPlantao.setHospital(hospital);
-        novoPlantao.setEspecialidade(requestDTO.especialidade());
+        novoPlantao.setEspecialidade(especialidadeGerenciada);
         novoPlantao.setDataInicio(requestDTO.inicio());
         novoPlantao.setDataFim(requestDTO.fim());
         novoPlantao.setValor(requestDTO.valor());
@@ -67,11 +73,11 @@ public class PlantaoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PlantaoResponseDTO> findAvailable(Long hospitalId, LocalDate data, Pageable pageable) {
+    public Page<PlantaoResponseDTO> findAvailable(List<StatusPlantao> statusList, Long hospitalId, LocalDate data, Pageable pageable) {
         LocalDateTime dataInicio = (data != null) ? data.atStartOfDay() : null;
         LocalDateTime dataFim = (data != null) ? data.plusDays(1).atStartOfDay() : null;
 
-        Specification<Plantao> spec = PlantaoSpecifications.withFilters(StatusPlantao.DISPONIVEL, hospitalId, dataInicio, dataFim);
+        Specification<Plantao> spec = PlantaoSpecifications.withFilters(statusList, hospitalId, dataInicio, dataFim);
 
         Page<Plantao> plantoesPage = plantaoRepository.findAll(spec, pageable);
 
@@ -148,9 +154,13 @@ public class PlantaoService {
         Plantao plantao = plantaoRepository.findById(plantaoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
 
-        plantao.setHospital(hospitalRepository.findById(plantaoRequestDTO.hospitalId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital não encontrado.")));
-        plantao.setEspecialidade(plantaoRequestDTO.especialidade());
+        Hospital hospital = hospitalRepository.findById(plantaoRequestDTO.hospitalId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital não encontrado."));
+
+        Especialidade especialidadeGerenciada = processarEspecialidade(plantaoRequestDTO.especialidade());
+
+        plantao.setHospital(hospital);
+        plantao.setEspecialidade(especialidadeGerenciada);
         plantao.setDataInicio(plantaoRequestDTO.inicio());
         plantao.setDataFim(plantaoRequestDTO.fim());
         plantao.setValor(plantaoRequestDTO.valor());
@@ -179,6 +189,27 @@ public class PlantaoService {
         return convertToDto(plantao);
     }
 
+    private Especialidade processarEspecialidade(Especialidade especialidadeDto) {
+        if (especialidadeDto == null) {
+            throw new IllegalArgumentException("Dados da especialidade são obrigatórios.");
+        }
+
+        if (especialidadeDto.getId() != null) {
+            return especialidadeRepository.findById(especialidadeDto.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Especialidade não encontrada com ID: " + especialidadeDto.getId()));
+        }
+
+        if (especialidadeDto.getNome() == null || especialidadeDto.getNome().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome da especialidade é obrigatório para novas especialidades.");
+        }
+
+        return especialidadeRepository.findByNome(especialidadeDto.getNome())
+                .orElseGet(() -> {
+                    Especialidade novaEspecialidade = new Especialidade(especialidadeDto.getNome());
+                    return especialidadeRepository.save(novaEspecialidade);
+                });
+    }
+
     private MedicoResponseDTO convertMedicoToDto(Medico medico) {
         if (medico == null) {
             return null;
@@ -188,7 +219,7 @@ public class PlantaoService {
         String email = (medico.getUser() != null) ? medico.getUser().getEmail() : null;
         String telefone = (medico.getUser() != null) ? medico.getUser().getTelefone() : null;
 
-        String especialidadeNome = Optional.ofNullable(medico.getEspecialidade())
+        String especialidadeNomeMedico = Optional.ofNullable(medico.getEspecialidade())
                 .map(Especialidade::getNome)
                 .orElse(null);
 
@@ -198,7 +229,7 @@ public class PlantaoService {
                 nomeCompleto,
                 email,
                 telefone,
-                especialidadeNome
+                especialidadeNomeMedico
         );
     }
 
@@ -213,13 +244,25 @@ public class PlantaoService {
                         .collect(Collectors.toList()) :
                 List.of();
 
+        Long especialidadeId = null;
+        String especialidadeNome = null;
+        if (plantao.getEspecialidade() != null) {
+            try {
+                especialidadeId = plantao.getEspecialidade().getId();
+                especialidadeNome = plantao.getEspecialidade().getNome();
+            } catch (org.hibernate.LazyInitializationException e) {
+                System.err.println("LazyInitializationException ao acessar especialidade para Plantao ID: " + plantao.getId() + ". Retornando null.");
+            }
+        }
+
         return new PlantaoResponseDTO(
                 plantao.getId(),
                 plantao.getHospital().getId(),
                 plantao.getHospital().getNome(),
                 plantao.getMedico() != null ? plantao.getMedico().getId() : null,
                 nomeMedico,
-                plantao.getEspecialidade(),
+                especialidadeId,
+                especialidadeNome,
                 plantao.getDataInicio(),
                 plantao.getDataFim(),
                 plantao.getValor(),
