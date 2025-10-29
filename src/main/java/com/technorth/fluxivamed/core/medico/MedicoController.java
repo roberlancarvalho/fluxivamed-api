@@ -2,6 +2,7 @@ package com.technorth.fluxivamed.core.medico;
 
 import com.technorth.fluxivamed.core.medico.dto.MedicoDisponibilidadeRequest;
 import com.technorth.fluxivamed.core.medico.dto.MedicoDisponivelDTO;
+import com.technorth.fluxivamed.core.medico.dto.MedicoResponseDTO;
 import com.technorth.fluxivamed.core.medico.dto.PeriodoDisponibilidadeResponseDTO;
 import com.technorth.fluxivamed.domain.User;
 import com.technorth.fluxivamed.repository.UserRepository;
@@ -11,8 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -30,7 +29,13 @@ public class MedicoController {
         this.userRepository = userRepository;
     }
 
-    // Endpoint para buscar médicos disponíveis (ESCALISTAS)
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOSPITAL_ADMIN', 'ESCALISTA')")
+    public ResponseEntity<List<MedicoResponseDTO>> listarTodosMedicos() {
+        List<MedicoResponseDTO> medicos = medicoService.listarTodosMedicos();
+        return ResponseEntity.ok(medicos);
+    }
+
     @GetMapping("/disponibilidade")
     @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ESCALISTA', 'MEDICO')")
     public ResponseEntity<List<MedicoDisponivelDTO>> getMedicosDisponiveis(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fim, @RequestParam(required = false) String especialidade) {
@@ -38,7 +43,6 @@ public class MedicoController {
         return ResponseEntity.ok(medicos);
     }
 
-    // Endpoint para o médico logado buscar SUA disponibilidade
     @GetMapping("/minha-disponibilidade")
     @PreAuthorize("hasRole('MEDICO')")
     public ResponseEntity<List<PeriodoDisponibilidadeResponseDTO>> getMinhaDisponibilidade(Authentication authentication) {
@@ -55,7 +59,6 @@ public class MedicoController {
         return ResponseEntity.ok(disponibilidades);
     }
 
-    // Endpoint para o médico logado definir SUA disponibilidade
     @PostMapping("/minha-disponibilidade")
     @PreAuthorize("hasRole('MEDICO')")
     public ResponseEntity<Void> definirMinhaDisponibilidade(@Valid @RequestBody MedicoDisponibilidadeRequest request, Authentication authentication) {

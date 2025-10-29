@@ -1,7 +1,9 @@
 package com.technorth.fluxivamed.core.medico;
 
+import com.technorth.fluxivamed.core.especialidade.Especialidade;
 import com.technorth.fluxivamed.core.medico.dto.MedicoDisponibilidadeRequest;
 import com.technorth.fluxivamed.core.medico.dto.MedicoDisponivelDTO;
+import com.technorth.fluxivamed.core.medico.dto.MedicoResponseDTO;
 import com.technorth.fluxivamed.core.medico.dto.PeriodoDisponibilidadeResponseDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,7 +26,38 @@ public class MedicoService {
     }
 
     @Transactional(readOnly = true)
+    public List<MedicoResponseDTO> listarTodosMedicos() {
+        return medicoRepository.findAll().stream()
+                .map(this::convertToMedicoResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    private MedicoResponseDTO convertToMedicoResponseDTO(Medico medico) {
+        if (medico == null) {
+            return null;
+        }
+
+        String nomeCompleto = (medico.getUser() != null) ? medico.getUser().getFullName() : null;
+        String email = (medico.getUser() != null) ? medico.getUser().getEmail() : null;
+        String telefone = (medico.getUser() != null) ? medico.getUser().getTelefone() : null;
+
+        String especialidadeNome = Optional.ofNullable(medico.getEspecialidade())
+                .map(Especialidade::getNome)
+                .orElse(null);
+
+        return new MedicoResponseDTO(
+                medico.getId(),
+                nomeCompleto,
+                medico.getCrm(),
+                especialidadeNome,
+                email,
+                telefone
+        );
+    }
+
+    @Transactional(readOnly = true)
     public List<MedicoDisponivelDTO> findDisponiveis(LocalDateTime inicio, LocalDateTime fim, String especialidade) {
+        // Implemente a lógica real aqui se necessário
         return new ArrayList<>();
     }
 

@@ -1,7 +1,5 @@
 package com.technorth.fluxivamed.core.medico.dto;
 
-import com.technorth.fluxivamed.domain.User;
-
 public record MedicoResponseDTO(
         Long id,
         String crm,
@@ -9,4 +7,5 @@ public record MedicoResponseDTO(
         String email,
         String telefone,
         String especialidadeNome
-) {}
+) {
+}

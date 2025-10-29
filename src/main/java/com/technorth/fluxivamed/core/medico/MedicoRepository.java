@@ -7,10 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional; // Importe Optional para findByEmail
+import java.util.Optional;
 
 @Repository
 public interface MedicoRepository extends JpaRepository<Medico, Long> {
+
+    @Query("SELECT m FROM Medico m LEFT JOIN FETCH m.user u LEFT JOIN FETCH m.especialidade e")
+    List<Medico> findAll();
 
     @Query("SELECT m FROM Medico m WHERE " +
             "(:especialidade IS NULL OR m.especialidade = :especialidade) AND " +
@@ -24,5 +27,6 @@ public interface MedicoRepository extends JpaRepository<Medico, Long> {
             @Param("especialidade") String especialidade);
 
     Optional<Medico> findByUserEmail(String email);
+
     Optional<Medico> findByUserId(Long userId);
 }

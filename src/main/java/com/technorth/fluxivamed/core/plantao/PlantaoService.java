@@ -174,7 +174,7 @@ public class PlantaoService {
         Plantao plantao = plantaoRepository.findById(plantaoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
 
-        if (plantao.getStatus() == StatusPlantao.AGUARDANDO_APROVACAO || plantao.getStatus() == StatusPlantao.PREENCHIDO || plantao.getStatus() == StatusPlantao.REALIZADO) {
+        if (plantao.getStatus() == StatusPlantao.REALIZADO) {
             throw new IllegalStateException("Não é possível excluir um plantão que já possui candidaturas, médico alocado ou já foi realizado.");
         }
 

@@ -1,7 +1,7 @@
 package com.technorth.fluxivamed.auth;
 
-import com.technorth.fluxivamed.core.especialidade.Especialidade; // Adicionar este import
-import com.technorth.fluxivamed.core.especialidade.EspecialidadeRepository; // Adicionar este import
+import com.technorth.fluxivamed.core.especialidade.Especialidade;
+import com.technorth.fluxivamed.core.especialidade.EspecialidadeRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
 import com.technorth.fluxivamed.domain.Role;
@@ -34,9 +34,7 @@ public class AuthService {
     private final MedicoRepository medicos;
     private final EspecialidadeRepository especialidades;
 
-    public AuthService(AuthenticationManager am, JwtEncoder enc, PasswordEncoder pe,
-                       UserRepository ur, RoleRepository rr, MedicoRepository mr,
-                       EspecialidadeRepository er) {
+    public AuthService(AuthenticationManager am, JwtEncoder enc, PasswordEncoder pe, UserRepository ur, RoleRepository rr, MedicoRepository mr, EspecialidadeRepository er) {
         this.authManager = am;
         this.encoder = enc;
         this.passwordEncoder = pe;
@@ -59,8 +57,7 @@ public class AuthService {
 
         String strRole = (req.role() == null || req.role().isBlank()) ? "MEDICO" : req.role().toUpperCase();
 
-        Role userRole = roles.findByName(strRole)
-                .orElseThrow(() -> new RuntimeException("Error: Role '" + strRole + "' is not found."));
+        Role userRole = roles.findByName(strRole).orElseThrow(() -> new RuntimeException("Error: Role '" + strRole + "' is not found."));
 
         user.setRoles(Collections.singleton(userRole));
         User savedUser = users.save(user);
@@ -69,19 +66,34 @@ public class AuthService {
             if (req.crm() == null || req.especialidade() == null) {
                 throw new IllegalArgumentException("CRM e Especialidade são obrigatórios para o perfil MEDICO.");
             }
+
+            Especialidade especialidadeGerenciada = processarEspecialidade(req.especialidade());
+
             Medico medicoProfile = new Medico();
             medicoProfile.setUser(savedUser);
             medicoProfile.setCrm(req.crm());
-
-            Especialidade especialidadeObj = especialidades.findByNome(req.especialidade())
-                    .orElseGet(() -> {
-                        Especialidade novaEspecialidade = new Especialidade(req.especialidade());
-                        return especialidades.save(novaEspecialidade);
-                    });
-
-            medicoProfile.setEspecialidade(especialidadeObj);
+            medicoProfile.setEspecialidade(especialidadeGerenciada);
             medicos.save(medicoProfile);
         }
+    }
+
+    private Especialidade processarEspecialidade(Especialidade especialidadeDto) {
+        if (especialidadeDto == null) {
+            throw new IllegalArgumentException("Dados da especialidade são obrigatórios.");
+        }
+
+        if (especialidadeDto.getId() != null && especialidadeDto.getId() > 0) {
+            return especialidades.findById(especialidadeDto.getId()).orElseThrow(() -> new IllegalArgumentException("Especialidade não encontrada com ID: " + especialidadeDto.getId()));
+        }
+
+        if (especialidadeDto.getNome() == null || especialidadeDto.getNome().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome da especialidade é obrigatório para novas especialidades.");
+        }
+
+        return especialidades.findByNome(especialidadeDto.getNome()).orElseGet(() -> {
+            Especialidade novaEspecialidade = new Especialidade(especialidadeDto.getNome());
+            return especialidades.save(novaEspecialidade);
+        });
     }
 
     public Token login(String email, String rawPassword) {
@@ -91,16 +103,13 @@ public class AuthService {
         var now = Instant.now();
         long expiry = 3600;
 
-        var scope = user.getAuthorities().stream()
-                .map(grantedAuthority -> grantedAuthority.getAuthority())
-                .collect(Collectors.toList());
+        var scope = user.getAuthorities().stream().map(grantedAuthority -> grantedAuthority.getAuthority()).collect(Collectors.toList());
 
-        var claimsBuilder = JwtClaimsSet.builder()
-                .subject(user.getEmail())
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(expiry))
-                .claim("scope", scope)
-                .claim("fullName", user.getFullName());
+        var claimsBuilder = JwtClaimsSet.builder().subject(user.getEmail()).issuedAt(now).expiresAt(now.plusSeconds(expiry)).claim("scope", scope).claim("fullName", user.getFullName());
+
+        if (user.getId() != null) {
+            claimsBuilder.claim("userId", user.getId());
+        }
 
         if (user.getTenantId() != null && !user.getTenantId().isBlank()) {
             claimsBuilder.claim("tenant", user.getTenantId());
@@ -113,5 +122,6 @@ public class AuthService {
         return new Token(tokenValue, expiry);
     }
 
-    public record Token(String accessToken, long expiresIn) {}
+    public record Token(String accessToken, long expiresIn) {
+    }
 }

@@ -2,7 +2,6 @@ package com.technorth.fluxivamed.core.medico;
 
 import com.technorth.fluxivamed.core.candidatura.Candidatura;
 import com.technorth.fluxivamed.core.especialidade.Especialidade;
-import com.technorth.fluxivamed.core.plantao.Plantao;
 import com.technorth.fluxivamed.domain.User;
 import jakarta.persistence.*;
 import lombok.EqualsAndHashCode;
