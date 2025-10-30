@@ -39,17 +39,16 @@ public class User implements UserDetails {
     private String tenantId;
 
     @Column(name = "created_at")
-    private Instant createdAt = Instant.now();
+    private final Instant createdAt = Instant.now();
 
     @Column(name = "updated_at")
-    private Instant updatedAt = Instant.now();
+    private final Instant updatedAt = Instant.now();
+
+    @Column(name = "foto_url")
+    private String fotoUrl;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
 
     public User() {
@@ -71,7 +70,6 @@ public class User implements UserDetails {
         this.fullName = fullName;
     }
 
-    // --- ADICIONE ESTES MÉTODOS ---
     public String getTelefone() {
         return telefone;
     }
@@ -79,14 +77,9 @@ public class User implements UserDetails {
     public void setTelefone(String telefone) {
         this.telefone = telefone;
     }
-    // ----------------------------
 
     public Boolean getEnabled() {
         return enabled;
-    }
-
-    public void setEnabled(Boolean enabled) {
-        this.enabled = enabled;
     }
 
     public String getTenantId() {
@@ -105,6 +98,14 @@ public class User implements UserDetails {
         return updatedAt;
     }
 
+    public String getFotoUrl() {
+        return fotoUrl;
+    }
+
+    public void setFotoUrl(String fotoUrl) {
+        this.fotoUrl = fotoUrl;
+    }
+
     public Set<Role> getRoles() {
         return roles;
     }
@@ -113,12 +114,9 @@ public class User implements UserDetails {
         this.roles = roles;
     }
 
-    // ADIÇÃO: Métodos obrigatórios da interface UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return this.roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
-                .collect(Collectors.toList());
+        return this.roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName())).collect(Collectors.toList());
     }
 
     @Override
@@ -153,5 +151,9 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return this.enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
     }
 }

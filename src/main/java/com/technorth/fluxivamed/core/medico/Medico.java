@@ -33,7 +33,7 @@ public class Medico {
     private String crm;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "especialidade_id", nullable = false)
+    @JoinColumn(name = "especialidade_id", nullable = true)
     private Especialidade especialidade;
 
     @OneToMany(mappedBy = "medico", cascade = CascadeType.ALL, orphanRemoval = true)

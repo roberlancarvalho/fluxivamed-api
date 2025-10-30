@@ -16,7 +16,7 @@ public interface MedicoRepository extends JpaRepository<Medico, Long> {
     List<Medico> findAll();
 
     @Query("SELECT m FROM Medico m WHERE " +
-            "(:especialidade IS NULL OR m.especialidade = :especialidade) AND " +
+            "(:especialidade IS NULL OR m.especialidade.nome = :especialidade) AND " +
             "m.id NOT IN (" +
             "  SELECT p.medico.id FROM Plantao p WHERE p.medico IS NOT NULL AND " +
             "  (p.dataInicio < :fim AND p.dataFim > :inicio)" +
@@ -27,6 +27,9 @@ public interface MedicoRepository extends JpaRepository<Medico, Long> {
             @Param("especialidade") String especialidade);
 
     Optional<Medico> findByUserEmail(String email);
+
+    @Query("SELECT m FROM Medico m LEFT JOIN FETCH m.especialidade WHERE m.id = :userId")
+    Optional<Medico> findByUserIdWithEspecialidade(@Param("userId") Long userId);
 
     Optional<Medico> findByUserId(Long userId);
 }
