@@ -45,4 +45,6 @@ public interface PlantaoRepository extends JpaRepository<Plantao, Long>, JpaSpec
     // Se você tiver um status mais específico para "confirmado", ajuste aqui.
     @Query("SELECT COUNT(p) FROM Plantao p WHERE p.medico.user.email = :medicoEmail AND p.dataInicio > :now AND p.status = 'PREENCHIDO'")
     long countProximosPlantoesDoMedico(@Param("medicoEmail") String medicoEmail, @Param("now") LocalDateTime now);
+
+    List<Plantao> findByMedicoId(Long medicoId);
 }

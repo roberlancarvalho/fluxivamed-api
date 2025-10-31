@@ -6,6 +6,8 @@ import com.technorth.fluxivamed.core.especialidade.Especialidade;
 import com.technorth.fluxivamed.core.especialidade.EspecialidadeRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
+import com.technorth.fluxivamed.core.plantao.Plantao;
+import com.technorth.fluxivamed.core.plantao.PlantaoRepository;
 import com.technorth.fluxivamed.domain.User;
 import com.technorth.fluxivamed.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -24,14 +27,15 @@ public class ProfileService {
     private final MedicoRepository medicoRepository;
     private final EspecialidadeRepository especialidadeRepository;
     private final PasswordEncoder passwordEncoder;
-    // private final StorageService storageService; // Descomente quando tiver seu S3/GCS
+    private final PlantaoRepository plantaoRepository;
 
-    public ProfileService(UserRepository userRepository, MedicoRepository medicoRepository, EspecialidadeRepository especialidadeRepository, PasswordEncoder passwordEncoder
-            /*, StorageService storageService */) {
+    public ProfileService(UserRepository userRepository, MedicoRepository medicoRepository, EspecialidadeRepository especialidadeRepository, PasswordEncoder passwordEncoder, PlantaoRepository plantaoRepository
+            /*, StorageService */) {
         this.userRepository = userRepository;
         this.medicoRepository = medicoRepository;
         this.especialidadeRepository = especialidadeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.plantaoRepository = plantaoRepository;
         // this.storageService = storageService;
     }
 
@@ -106,6 +110,28 @@ public class ProfileService {
         userRepository.save(user);
 
         return fotoUrl;
+    }
+
+    @Transactional
+    public void deleteProfile(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+
+        Optional<Medico> medicoOpt = medicoRepository.findByUserId(user.getId());
+
+        if (medicoOpt.isPresent()) {
+            Medico medico = medicoOpt.get();
+
+            List<Plantao> plantoesAfetados = plantaoRepository.findByMedicoId(medico.getId());
+            for (Plantao plantao : plantoesAfetados) {
+                plantao.setMedico(null);
+                plantaoRepository.save(plantao);
+            }
+
+            medicoRepository.delete(medico);
+        }
+
+        userRepository.delete(user);
     }
 
     private Especialidade processarEspecialidade(Especialidade especialidadeDto) {

@@ -51,4 +51,11 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
     }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMyProfile(Authentication authentication) {
+        String email = authentication.getName();
+        profileService.deleteProfile(email);
+        return ResponseEntity.noContent().build();
+    }
 }
