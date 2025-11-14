@@ -2,10 +2,10 @@ package com.technorth.fluxivamed.core.medico.dto;
 
 public record MedicoResponseDTO(
         Long id,
-        String crm,
         String nomeCompleto,
+        String crm,
+        Long especialidadeId,
+        String especialidadeNome,
         String email,
-        String telefone,
-        String especialidadeNome
-) {
-}
+        String telefone
+) {}

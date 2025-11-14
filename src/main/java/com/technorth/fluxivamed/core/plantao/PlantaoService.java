@@ -9,6 +9,8 @@ import com.technorth.fluxivamed.core.hospital.HospitalRepository;
 import com.technorth.fluxivamed.core.medico.Medico;
 import com.technorth.fluxivamed.core.medico.MedicoRepository;
 import com.technorth.fluxivamed.core.medico.dto.MedicoResponseDTO;
+import com.technorth.fluxivamed.core.notification.Notification;
+import com.technorth.fluxivamed.core.notification.NotificationRepository;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoRequestDTO;
 import com.technorth.fluxivamed.core.plantao.dto.PlantaoResponseDTO;
 import com.technorth.fluxivamed.domain.User;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,7 +28,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,23 +38,22 @@ public class PlantaoService {
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
     private final EspecialidadeRepository especialidadeRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationRepository notificationRepository;
 
-    public PlantaoService(PlantaoRepository plantaoRepository,
-                          MedicoRepository medicoRepository,
-                          UserRepository userRepository,
-                          HospitalRepository hospitalRepository,
-                          EspecialidadeRepository especialidadeRepository) {
+    public PlantaoService(PlantaoRepository plantaoRepository, MedicoRepository medicoRepository, UserRepository userRepository, HospitalRepository hospitalRepository, EspecialidadeRepository especialidadeRepository, SimpMessagingTemplate messagingTemplate, NotificationRepository notificationRepository) {
         this.plantaoRepository = plantaoRepository;
         this.medicoRepository = medicoRepository;
         this.userRepository = userRepository;
         this.hospitalRepository = hospitalRepository;
         this.especialidadeRepository = especialidadeRepository;
+        this.messagingTemplate = messagingTemplate;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional
     public PlantaoResponseDTO criarPlantao(PlantaoRequestDTO requestDTO) {
-        Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId())
-                .orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
+        Hospital hospital = hospitalRepository.findById(requestDTO.hospitalId()).orElseThrow(() -> new EntityNotFoundException("Hospital não encontrado com o ID: " + requestDTO.hospitalId()));
 
         Especialidade especialidadeGerenciada = processarEspecialidade(requestDTO.especialidade());
 
@@ -96,8 +97,7 @@ public class PlantaoService {
             throw new IllegalStateException("Só é possível se candidatar a plantões com status DISPONIVEL ou AGUARDANDO_APROVACAO.");
         }
 
-        boolean jaCandidato = plantao.getCandidatos().stream()
-                .anyMatch(candidatura -> candidatura.getMedico().getId().equals(medico.getId()));
+        boolean jaCandidato = plantao.getCandidatos().stream().anyMatch(candidatura -> candidatura.getMedico().getId().equals(medico.getId()));
         if (jaCandidato) {
             throw new IllegalStateException("Médico já se candidatou para este plantão.");
         }
@@ -123,10 +123,7 @@ public class PlantaoService {
             throw new IllegalStateException("Plantão não está aguardando aprovação.");
         }
 
-        Candidatura candidaturaAprovada = plantao.getCandidatos().stream()
-                .filter(c -> c.getMedico().getId().equals(medicoAprovado.getId()) && c.getStatus() == CandidaturaStatus.PENDENTE)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Este médico não é um candidato PENDENTE para este plantão."));
+        Candidatura candidaturaAprovada = plantao.getCandidatos().stream().filter(c -> c.getMedico().getId().equals(medicoAprovado.getId()) && c.getStatus() == CandidaturaStatus.PENDENTE).findFirst().orElseThrow(() -> new IllegalStateException("Este médico não é um candidato PENDENTE para este plantão."));
 
         plantao.setMedico(medicoAprovado);
         plantao.setStatus(StatusPlantao.PREENCHIDO);
@@ -140,6 +137,15 @@ public class PlantaoService {
         });
 
         Plantao plantaoSalvo = plantaoRepository.save(plantao);
+
+        String mensagem = "Sua candidatura para o plantão #" + plantao.getId() + " no " + plantao.getHospital().getNome() + " foi APROVADA.";
+        String link = "/dashboard/plantoes/" + plantao.getId();
+
+        Notification notification = new Notification(medicoAprovado.getUser(), mensagem, link);
+        notificationRepository.save(notification);
+
+        messagingTemplate.convertAndSendToUser(medicoAprovado.getUser().getEmail(), "/queue/notifications", notification);
+
         return convertToDto(plantaoSalvo);
     }
 
@@ -151,11 +157,9 @@ public class PlantaoService {
 
     @Transactional
     public PlantaoResponseDTO atualizarPlantao(Long plantaoId, PlantaoRequestDTO plantaoRequestDTO) {
-        Plantao plantao = plantaoRepository.findById(plantaoId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
+        Plantao plantao = plantaoRepository.findById(plantaoId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
 
-        Hospital hospital = hospitalRepository.findById(plantaoRequestDTO.hospitalId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital não encontrado."));
+        Hospital hospital = hospitalRepository.findById(plantaoRequestDTO.hospitalId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital não encontrado."));
 
         Especialidade especialidadeGerenciada = processarEspecialidade(plantaoRequestDTO.especialidade());
 
@@ -171,21 +175,18 @@ public class PlantaoService {
 
     @Transactional
     public void excluirPlantao(Long plantaoId) {
-        Plantao plantao = plantaoRepository.findById(plantaoId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
+        Plantao plantao = plantaoRepository.findById(plantaoId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + plantaoId));
 
         if (plantao.getStatus() == StatusPlantao.REALIZADO) {
             throw new IllegalStateException("Não é possível excluir um plantão que já possui candidaturas, médico alocado ou já foi realizado.");
         }
 
-        System.out.println("Excluindo plantão ID: " + plantaoId);
         plantaoRepository.delete(plantao);
     }
 
     @Transactional(readOnly = true)
     public PlantaoResponseDTO getPlantaoDtoById(Long id) {
-        Plantao plantao = plantaoRepository.findByIdWithCandidatos(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + id));
+        Plantao plantao = plantaoRepository.findByIdWithCandidatos(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plantão não encontrado com ID: " + id));
         return convertToDto(plantao);
     }
 
@@ -195,54 +196,41 @@ public class PlantaoService {
         }
 
         if (especialidadeDto.getId() != null) {
-            return especialidadeRepository.findById(especialidadeDto.getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Especialidade não encontrada com ID: " + especialidadeDto.getId()));
+            return especialidadeRepository.findById(especialidadeDto.getId()).orElseThrow(() -> new IllegalArgumentException("Especialidade não encontrada com ID: " + especialidadeDto.getId()));
         }
 
         if (especialidadeDto.getNome() == null || especialidadeDto.getNome().trim().isEmpty()) {
             throw new IllegalArgumentException("Nome da especialidade é obrigatório para novas especialidades.");
         }
 
-        return especialidadeRepository.findByNome(especialidadeDto.getNome())
-                .orElseGet(() -> {
-                    Especialidade novaEspecialidade = new Especialidade(especialidadeDto.getNome());
-                    return especialidadeRepository.save(novaEspecialidade);
-                });
+        return especialidadeRepository.findByNome(especialidadeDto.getNome()).orElseGet(() -> {
+            Especialidade novaEspecialidade = new Especialidade(especialidadeDto.getNome());
+            return especialidadeRepository.save(novaEspecialidade);
+        });
     }
 
+    // --- CORREÇÃO APLICADA AQUI ---
     private MedicoResponseDTO convertMedicoToDto(Medico medico) {
         if (medico == null) {
             return null;
         }
 
-        String nomeCompleto = (medico.getUser() != null) ? medico.getUser().getFullName() : null;
-        String email = (medico.getUser() != null) ? medico.getUser().getEmail() : null;
-        String telefone = (medico.getUser() != null) ? medico.getUser().getTelefone() : null;
+        User user = medico.getUser();
+        Especialidade especialidade = medico.getEspecialidade();
 
-        String especialidadeNomeMedico = Optional.ofNullable(medico.getEspecialidade())
-                .map(Especialidade::getNome)
-                .orElse(null);
+        String nomeCompleto = (user != null) ? user.getFullName() : null;
+        String email = (user != null) ? user.getEmail() : null;
+        String telefone = (user != null) ? user.getTelefone() : null;
+        Long especialidadeId = (especialidade != null) ? especialidade.getId() : null;
+        String especialidadeNome = (especialidade != null) ? especialidade.getNome() : null;
 
-        return new MedicoResponseDTO(
-                medico.getId(),
-                medico.getCrm(),
-                nomeCompleto,
-                email,
-                telefone,
-                especialidadeNomeMedico
-        );
+        return new MedicoResponseDTO(medico.getId(), nomeCompleto, medico.getCrm(), especialidadeId, especialidadeNome, email, telefone);
     }
 
     private PlantaoResponseDTO convertToDto(Plantao plantao) {
-        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null)
-                ? plantao.getMedico().getUser().getFullName() : null;
+        String nomeMedico = (plantao.getMedico() != null && plantao.getMedico().getUser() != null) ? plantao.getMedico().getUser().getFullName() : null;
 
-        List<MedicoResponseDTO> candidatosDTO = plantao.getCandidatos() != null ?
-                plantao.getCandidatos().stream()
-                        .filter(c -> c.getStatus() == CandidaturaStatus.PENDENTE)
-                        .map(candidatura -> convertMedicoToDto(candidatura.getMedico()))
-                        .collect(Collectors.toList()) :
-                List.of();
+        List<MedicoResponseDTO> candidatosDTO = plantao.getCandidatos() != null ? plantao.getCandidatos().stream().filter(c -> c.getStatus() == CandidaturaStatus.PENDENTE).map(candidatura -> convertMedicoToDto(candidatura.getMedico())).collect(Collectors.toList()) : List.of();
 
         Long especialidadeId = null;
         String especialidadeNome = null;
@@ -251,23 +239,10 @@ public class PlantaoService {
                 especialidadeId = plantao.getEspecialidade().getId();
                 especialidadeNome = plantao.getEspecialidade().getNome();
             } catch (org.hibernate.LazyInitializationException e) {
-                System.err.println("LazyInitializationException ao acessar especialidade para Plantao ID: " + plantao.getId() + ". Retornando null.");
+                // Tratamento silencioso para evitar quebras em listas
             }
         }
 
-        return new PlantaoResponseDTO(
-                plantao.getId(),
-                plantao.getHospital().getId(),
-                plantao.getHospital().getNome(),
-                plantao.getMedico() != null ? plantao.getMedico().getId() : null,
-                nomeMedico,
-                especialidadeId,
-                especialidadeNome,
-                plantao.getDataInicio(),
-                plantao.getDataFim(),
-                plantao.getValor(),
-                plantao.getStatus(),
-                candidatosDTO
-        );
+        return new PlantaoResponseDTO(plantao.getId(), plantao.getHospital().getId(), plantao.getHospital().getNome(), plantao.getMedico() != null ? plantao.getMedico().getId() : null, nomeMedico, especialidadeId, especialidadeNome, plantao.getDataInicio(), plantao.getDataFim(), plantao.getValor(), plantao.getStatus(), candidatosDTO);
     }
 }

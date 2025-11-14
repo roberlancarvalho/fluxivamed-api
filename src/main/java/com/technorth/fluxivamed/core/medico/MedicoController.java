@@ -1,9 +1,6 @@
 package com.technorth.fluxivamed.core.medico;
 
-import com.technorth.fluxivamed.core.medico.dto.MedicoDisponibilidadeRequest;
-import com.technorth.fluxivamed.core.medico.dto.MedicoDisponivelDTO;
-import com.technorth.fluxivamed.core.medico.dto.MedicoResponseDTO;
-import com.technorth.fluxivamed.core.medico.dto.PeriodoDisponibilidadeResponseDTO;
+import com.technorth.fluxivamed.core.medico.dto.*;
 import com.technorth.fluxivamed.domain.User;
 import com.technorth.fluxivamed.repository.UserRepository;
 import jakarta.validation.Valid;
@@ -73,6 +70,30 @@ public class MedicoController {
 
         medicoService.definirDisponibilidade(medicoId, request.getPeriodos());
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('HOSPITAL_ADMIN', 'ESCALISTA')")
+    public ResponseEntity<MedicoResponseDTO> getMedicoById(@PathVariable Long id) {
+        MedicoResponseDTO medico = medicoService.getMedicoById(id);
+        return ResponseEntity.ok(medico);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HOSPITAL_ADMIN', 'ESCALISTA')")
+    public ResponseEntity<MedicoResponseDTO> atualizarMedico(
+            @PathVariable Long id,
+            @Valid @RequestBody MedicoRequestDTO medicoRequestDTO) {
+
+        MedicoResponseDTO medicoAtualizado = medicoService.atualizarMedico(id, medicoRequestDTO);
+        return ResponseEntity.ok(medicoAtualizado);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('HOSPITAL_ADMIN')") // Apenas admins podem deletar
+    public ResponseEntity<Void> deletarMedico(@PathVariable Long id) {
+        medicoService.deletarMedico(id);
+        return ResponseEntity.noContent().build(); // Retorna 204 No Content (sucesso sem corpo)
     }
 
     @DeleteMapping("/minha-disponibilidade/{id}")

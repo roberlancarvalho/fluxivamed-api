@@ -114,8 +114,7 @@ public class ProfileService {
 
     @Transactional
     public void deleteProfile(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
 
         Optional<Medico> medicoOpt = medicoRepository.findByUserId(user.getId());
 
